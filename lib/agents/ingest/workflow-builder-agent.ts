@@ -7,7 +7,7 @@ import { WorkflowBuilderInput, WorkflowBuilderOutput, WorkflowStep, WorkflowBuil
 export async function workflowBuilderAgent(input: WorkflowBuilderInput): Promise<WorkflowBuilderOutput> {
   const model = new ChatGoogleGenerativeAI({
     apiKey: process.env.GOOGLE_API_KEY,
-    model: "gemini-1.5-flash-latest"
+    model: "gemini-2.5-flash-lite"
   });
 
   const response = await model.invoke(
