@@ -43,5 +43,16 @@
       "r4": "$250k–$500k",
       "r5": "$500k+"
     }
+  },
+  "chat": {
+    "title": "Grant Assistant",
+    "placeholder": "Type your message...",
+    "send": "Send",
+    "thinking": "Thinking...",
+    "greeting": "Hello! I'm your assistant for finding grants and funding for your business. Let me find the best options for you.",
+    "selectGrant": "Select an opportunity to continue:",
+    "progress": "Step {current} of {total}",
+    "review": "Your application summary",
+    "done": "Done! Your information has been collected."
   }
 }

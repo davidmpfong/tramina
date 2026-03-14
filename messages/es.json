@@ -43,5 +43,16 @@
       "r4": "$250k–$500k",
       "r5": "$500k+"
     }
+  },
+  "chat": {
+    "title": "Asistente de subvenciones",
+    "placeholder": "Escribe tu mensaje...",
+    "send": "Enviar",
+    "thinking": "Pensando...",
+    "greeting": "¡Hola! Soy tu asistente para encontrar subvenciones y fondos para tu negocio. Primero, déjame ver qué opciones son las mejores para ti.",
+    "selectGrant": "Selecciona una oportunidad para continuar:",
+    "progress": "Paso {current} de {total}",
+    "review": "Resumen de tu solicitud",
+    "done": "¡Listo! Tu información ha sido recopilada."
   }
 }
