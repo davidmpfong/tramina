@@ -283,7 +283,7 @@ export async function POST(req: NextRequest) {
         });
       } finally {
         await supabaseServerService
-          .from("ingest_runs")
+          ?.from("ingest_runs")
           .update({
             status: finalStatus ?? "success",
             ended_at: new Date().toISOString(),
