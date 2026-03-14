@@ -21,6 +21,7 @@ function buildSafePartialExtractedData(rawContent: string): ExtractedGrantData {
     amountMin: null,
     amountMax: null,
     deadline: null,
+    deadlineText: null,
     applicationWindowStart: null,
     applicationWindowEnd: null,
     awardType: null,
@@ -97,6 +98,7 @@ export async function grantExtractionAgent(input: GrantExtractionInput): Promise
     const extractedData: ExtractedGrantData = {
       ...parsed,
       type: normalizeType(parsed.type),
+      deadlineText: parsed.deadline ?? null, // preserve raw deadline text
       rawContent: parsed.rawContent?.trim() ? parsed.rawContent : input.rawContent
     };
 

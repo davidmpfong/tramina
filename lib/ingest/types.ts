@@ -61,6 +61,7 @@ export interface ExtractedGrantData {
   amountMin: number | null;
   amountMax: number | null;
   deadline: string | null;
+  deadlineText?: string | null;
   applicationWindowStart: string | null;
   applicationWindowEnd: string | null;
   awardType: string | null;

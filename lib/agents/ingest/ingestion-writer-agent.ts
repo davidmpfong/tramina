@@ -1,6 +1,13 @@
 import { supabaseServerService } from "@/lib/supabase/server";
 import { IngestionWriterInput, IngestionWriterOutput, IngestionWriteError } from "@/lib/ingest/types";
 
+function safeParseDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  return value;
+}
+
 /**
  * Writes ingested opportunity and workflow definition records to Supabase.
  */
@@ -19,7 +26,8 @@ export async function ingestionWriterAgent(input: IngestionWriterInput): Promise
         description: input.extractedData.description,
         amount_min: input.extractedData.amountMin,
         amount_max: input.extractedData.amountMax,
-        deadline: input.extractedData.deadline,
+        deadline: safeParseDate(input.extractedData.deadline),
+        deadline_text: input.extractedData.deadlineText ?? null,
         eligibility_rules: input.extractedData.eligibilityRules,
         geographic_scope: input.extractedData.geographicScope,
         languages_available: input.extractedData.languagesAvailable,
