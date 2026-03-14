@@ -6,6 +6,7 @@ import { eligibilityRankingAgent } from "@/lib/agents/eligibility-ranking-agent"
 import { questionPlannerAgent } from "@/lib/agents/question-planner-agent";
 import { draftComposerAgent } from "@/lib/agents/draft-composer-agent";
 import { qaActionAgent } from "@/lib/agents/qa-action-agent";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { supabaseServerAnon } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
@@ -29,6 +30,15 @@ export async function POST(req: NextRequest) {
   if (!authData.user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // Rate limit: 20 requests per minute per user
+  const allowed = await checkRateLimit(`draft:${authData.user.id}`, 20, 60);
+  if (!allowed) {
+    return new Response(JSON.stringify({ error: "Too many requests. Please wait a moment." }), {
+      status: 429,
       headers: { "Content-Type": "application/json" }
     });
   }

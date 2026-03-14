@@ -4,6 +4,7 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { supabaseServerAnon, supabaseServerService } from "@/lib/supabase/server";
 import { opportunityRetrievalAgent } from "@/lib/agents/opportunity-retrieval-agent";
 import { eligibilityRankingAgent } from "@/lib/agents/eligibility-ranking-agent";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { sanitizeForPrompt } from "@/lib/sanitize";
 import type { ChatResponseChunk, CollectedField, WorkflowStep } from "@/lib/chat/types";
 export const runtime = "nodejs";
