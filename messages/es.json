@@ -54,5 +54,19 @@
     "progress": "Paso {current} de {total}",
     "review": "Resumen de tu solicitud",
     "done": "¡Listo! Tu información ha sido recopilada."
+  },
+  "auth": {
+    "signIn": "Iniciar sesión",
+    "signUp": "Crear cuenta",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "passwordHint": "Mínimo 8 caracteres",
+    "submit": "Continuar",
+    "loading": "Cargando...",
+    "magicLink": "Enviar enlace de acceso",
+    "magicLinkSent": "¡Revisa tu correo para el enlace de acceso!",
+    "switchToSignUp": "¿No tienes cuenta? Regístrate",
+    "switchToSignIn": "¿Ya tienes cuenta? Inicia sesión",
+    "error": "Algo salió mal. Por favor intenta de nuevo."
   }
 }

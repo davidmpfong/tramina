@@ -54,5 +54,19 @@
     "progress": "Step {current} of {total}",
     "review": "Your application summary",
     "done": "Done! Your information has been collected."
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email address",
+    "password": "Password",
+    "passwordHint": "Minimum 8 characters",
+    "submit": "Continue",
+    "loading": "Loading...",
+    "magicLink": "Send sign-in link",
+    "magicLinkSent": "Check your email for the sign-in link!",
+    "switchToSignUp": "Don't have an account? Sign up",
+    "switchToSignIn": "Already have an account? Sign in",
+    "error": "Something went wrong. Please try again."
   }
 }
