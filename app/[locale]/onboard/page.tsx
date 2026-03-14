@@ -45,7 +45,7 @@ export default function OnboardPage() {
   useEffect(() => {
     supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        router.push(`/${locale}/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+        router.push(`/${locale}/auth?redirect=${encodeURIComponent(window.location.pathname)}` as never);
       }
     });
   }, [locale, router]);
@@ -108,7 +108,7 @@ export default function OnboardPage() {
       const ctx = encodeURIComponent(
         `El usuario tiene un negocio de tipo ${form.industry} con ${form.years_in_business} años de operación y ${form.employee_count} empleados.`
       );
-      router.push(`/${locale}/chat?ctx=${ctx}`);
+      router.push(`/${locale}/chat?ctx=${ctx}` as never);
     }
   }
 

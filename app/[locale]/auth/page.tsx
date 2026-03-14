@@ -60,7 +60,7 @@ function AuthContent() {
       return;
     }
 
-    router.push(redirectPath);
+    router.push(redirectPath as never);
   }
 
   async function handleMagicLink() {

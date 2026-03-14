@@ -82,7 +82,7 @@ function ChatContent() {
       }
 
       if (!session) {
-        router.push(`/${locale}/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+        router.push(`/${locale}/auth?redirect=${encodeURIComponent(window.location.pathname)}` as never);
         return;
       }
 
