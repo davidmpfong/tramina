@@ -13,6 +13,18 @@ function CallbackContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check for error in URL hash immediately
+    const hash = window.location.hash;
+    if (hash.includes("error=")) {
+      const params = new URLSearchParams(hash.replace("#", ""));
+      const errorCode = params.get("error_code") ?? params.get("error");
+      const errorDescription = params.get("error_description")?.replace(/\+/g, " ");
+      if (errorCode === "otp_expired" || errorCode === "access_denied") {
+        setError(errorDescription ?? "Sign-in link expired. Please request a new one.");
+        return;
+      }
+    }
+
     const next = searchParams.get("next");
     const destination = (next && next.startsWith("/")) ? next : `/${locale}/onboard`;
 
