@@ -50,13 +50,14 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  if (parsed.data.adminSecret !== process.env.ADMIN_SECRET) {
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret || parsed.data.adminSecret.length !== secret.length ||
+    !crypto.timingSafeEqual(Buffer.from(parsed.data.adminSecret), Buffer.from(secret))) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" }
     });
   }
-
   const ingestRunId = crypto.randomUUID();
   const locale = parsed.data.locale ?? "en";
 
@@ -68,12 +69,11 @@ export async function POST(req: NextRequest) {
   });
 
   if (insertRunError) {
-    return new Response(JSON.stringify({ error: insertRunError.message }), {
+    return new Response(JSON.stringify({ error: "Failed to initialize ingest run" }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
   }
-
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({

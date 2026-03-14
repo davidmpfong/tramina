@@ -13,8 +13,7 @@ const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_RE
 
 async function getUserIdFromRequest(req: NextRequest): Promise<string | null> {
   const authHeader = req.headers.get("authorization");
-  const token = authHeader?.replace("Bearer ", "");
-
+  const token = authHeader?.replace("Bearer ", "").trim();
   if (!token) {
     return null;
   }

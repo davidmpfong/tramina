@@ -6,7 +6,7 @@ import { eligibilityRankingAgent } from "@/lib/agents/eligibility-ranking-agent"
 import { questionPlannerAgent } from "@/lib/agents/question-planner-agent";
 import { draftComposerAgent } from "@/lib/agents/draft-composer-agent";
 import { qaActionAgent } from "@/lib/agents/qa-action-agent";
-
+import { supabaseServerAnon } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 const draftRequestSchema = z.object({
@@ -17,9 +17,24 @@ const draftRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   const encoder = new TextEncoder();
+  const authHeader = req.headers.get("authorization");
+  const token = authHeader?.replace("Bearer ", "").trim();
+  if (!token) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+  const { data: authData } = await supabaseServerAnon.auth.getUser(token);
+  if (!authData.user) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
   const body = await req.json();
   const parsed = draftRequestSchema.safeParse(body);
-
   if (!parsed.success) {
     return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
       status: 400,
