@@ -83,7 +83,9 @@ export async function grantExtractionAgent(input: GrantExtractionInput): Promise
               .join("\n")
           : "";
 
-    const parsed = JSON.parse(text) as ExtractedGrantData;
+    // Strip markdown fences if present
+    const cleanedText = text.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
+    const parsed = JSON.parse(cleanedText) as ExtractedGrantData;
 
     const extractedData: ExtractedGrantData = {
       ...parsed,
