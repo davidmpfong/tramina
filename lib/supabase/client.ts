@@ -7,4 +7,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing public Supabase environment variables");
 }
 
-export const supabaseBrowser = createClient(supabaseUrl, supabaseAnonKey);
+export const supabaseBrowser = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    flowType: "pkce"
+  }
+});

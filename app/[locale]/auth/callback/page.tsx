@@ -13,47 +13,39 @@ function CallbackContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check for error in URL hash immediately
+    const next = searchParams.get("next");
+    const destination = (next && next.startsWith("/")) ? next : `/${locale}/onboard`;
+
+    // Check for error in URL hash immediately (implicit flow errors)
     const hash = window.location.hash;
     if (hash.includes("error=")) {
       const params = new URLSearchParams(hash.replace("#", ""));
       const errorCode = params.get("error_code") ?? params.get("error");
       const errorDescription = params.get("error_description")?.replace(/\+/g, " ");
-      if (errorCode === "otp_expired" || errorCode === "access_denied") {
-        setError(errorDescription ?? "Sign-in link expired. Please request a new one.");
-        return;
-      }
+      setError(errorDescription ?? "Sign-in link expired. Please request a new one.");
+      return;
     }
 
-    const next = searchParams.get("next");
-    const destination = (next && next.startsWith("/")) ? next : `/${locale}/onboard`;
-
-    // The Supabase browser client automatically exchanges hash tokens (implicit flow)
-    // and PKCE codes. We just need to listen for the session to be established.
+    // Handle PKCE code exchange — Supabase browser client does this automatically
+    // on initialization when it detects a ?code= param. We just listen for the result.
     const { data: { subscription } } = supabaseBrowser.auth.onAuthStateChange(
       (event, session) => {
-        if (event === "SIGNED_IN" && session) {
-          subscription.unsubscribe();
-          router.push(destination as never);
-        } else if (event === "TOKEN_REFRESHED") {
-          subscription.unsubscribe();
-          router.push(destination as never);
-        } else if (event === "PASSWORD_RECOVERY") {
+        if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session) {
           subscription.unsubscribe();
           router.push(destination as never);
         }
       }
     );
 
-    // Fallback: if no auth event fires within 3 seconds, check session manually
+    // Fallback: check session after 5 seconds
     const timeout = setTimeout(async () => {
       const { data: { session } } = await supabaseBrowser.auth.getSession();
       if (session) {
         router.push(destination as never);
       } else {
-        setError("Sign-in link expired or invalid. Please request a new one.");
+        setError("Sign-in link expired or already used. Please request a new one.");
       }
-    }, 3000);
+    }, 5000);
 
     return () => {
       subscription.unsubscribe();
