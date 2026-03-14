@@ -4,6 +4,7 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { supabaseServerAnon, supabaseServerService } from "@/lib/supabase/server";
 import { opportunityRetrievalAgent } from "@/lib/agents/opportunity-retrieval-agent";
 import { eligibilityRankingAgent } from "@/lib/agents/eligibility-ranking-agent";
+import { sanitizeForPrompt } from "@/lib/sanitize";
 import type { ChatResponseChunk, CollectedField, WorkflowStep } from "@/lib/chat/types";
 export const runtime = "nodejs";
 
@@ -106,6 +107,15 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Rate limit: 30 requests per minute per user
+  const allowed = await checkRateLimit(`chat:${authData.user.id}`, 30, 60);
+  if (!allowed) {
+    return new Response(JSON.stringify({ error: "Too many requests. Please wait a moment." }), {
+      status: 429,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
   const body = await req.json();
   const parsed = chatRequestSchema.safeParse(body);
 
@@ -142,7 +152,8 @@ export async function POST(req: NextRequest) {
           initialContext
         } = parsed.data;
         if (phase === "greeting") {
-          const welcomeMsg = WELCOME_BY_LOCALE[locale] + (initialContext ? ` ${initialContext}` : "");
+          const safeCtx = initialContext ? sanitizeForPrompt(initialContext, 300) : null;
+          const welcomeMsg = WELCOME_BY_LOCALE[locale] + (safeCtx ? ` ${safeCtx}` : "");
           sendChunk({ type: "text", content: welcomeMsg });
           const profileResult = supabaseServerService
             ? await supabaseServerService
@@ -215,6 +226,7 @@ export async function POST(req: NextRequest) {
 
         if (phase === "matching") {
           const userMessage = getLastUserMessage(messages);
+          const safeUserMessage = sanitizeForPrompt(userMessage);
 
           if (!userMessage) {
             sendChunk({
@@ -230,7 +242,7 @@ export async function POST(req: NextRequest) {
             return;
           }
 
-          const decisionPrompt = `Return strict JSON with this shape: {"intent":"selected"|"question","selectedOpportunityId":string|null}.\nUser message: ${userMessage}\nKnown selectedOpportunityId (if any): ${selectedOpportunityId ?? "none"}`;
+          const decisionPrompt = `Return strict JSON with this shape: {"intent":"selected"|"question","selectedOpportunityId":string|null}.\nUser message: ${safeUserMessage}\nKnown selectedOpportunityId (if any): ${selectedOpportunityId ?? "none"}`;
 
           const decisionRaw = await model.invoke(decisionPrompt);
           const decisionText = decisionRaw.content?.toString() ?? "";
@@ -270,7 +282,7 @@ export async function POST(req: NextRequest) {
             return;
           }
 
-          const answerPrompt = `You are a helpful grants advisor. Reply in locale ${locale}. Keep responses practical and warm.\nUser question: ${userMessage}`;
+          const answerPrompt = `You are a helpful grants advisor. Reply in locale ${locale}. Keep responses practical and warm.\nUser question: ${safeUserMessage}`;
           await streamModelText(model, answerPrompt, (text) => sendChunk({ type: "text", content: text }));
           sendChunk({ type: "phase_change", phase: "matching" });
           sendChunk({ type: "done" });

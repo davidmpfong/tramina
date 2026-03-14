@@ -1,5 +1,6 @@
 import { supabaseServerService } from "@/lib/supabase/server";
 import { IngestionWriterInput, IngestionWriterOutput, IngestionWriteError } from "@/lib/ingest/types";
+import { sanitizeRawContent, validateSourceUrl } from "@/lib/sanitize";
 
 function safeParseDate(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -31,8 +32,8 @@ export async function ingestionWriterAgent(input: IngestionWriterInput): Promise
         eligibility_rules: input.extractedData.eligibilityRules,
         geographic_scope: input.extractedData.geographicScope,
         languages_available: input.extractedData.languagesAvailable,
-        source_url: input.extractedData.sourceUrl,
-        raw_content: input.extractedData.rawContent,
+        source_url: validateSourceUrl(input.extractedData.sourceUrl),
+        raw_content: sanitizeRawContent(input.extractedData.rawContent ?? ""),
         ingest_run_id: input.ingestRunId,
         application_url: input.extractedData.applicationUrl,
         contact_email: input.extractedData.contactEmail,

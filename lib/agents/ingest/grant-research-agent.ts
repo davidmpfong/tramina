@@ -1,5 +1,6 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { GrantResearchInput, GrantResearchOutput, ResearchError } from "@/lib/ingest/types";
+import { validateSourceUrl } from "@/lib/sanitize";
 
 /**
  * Researches grant details from prompt context (and optional source URL priority) using Gemini Flash.
@@ -14,8 +15,8 @@ export async function grantResearchAgent(input: GrantResearchInput): Promise<Gra
     [
       "You are a grant research assistant.",
       `Research the grant named: ${input.grantName}.`,
-      input.sourceUrl
-        ? `Prioritize information from this source URL first: ${input.sourceUrl}.`
+      validateSourceUrl(input.sourceUrl)
+        ? `Prioritize information from this source URL first: ${validateSourceUrl(input.sourceUrl)}.`
         : "No source URL was provided; rely on your strongest available knowledge.",
       "Return everything you know about this grant, including:",
       "- eligibility",
@@ -56,7 +57,7 @@ export async function grantResearchAgent(input: GrantResearchInput): Promise<Gra
 
   return {
     rawContent,
-    sourceUrlsUsed: [input.sourceUrl].filter((url): url is string => Boolean(url)),
+    sourceUrlsUsed: [validateSourceUrl(input.sourceUrl)].filter((url): url is string => Boolean(url)),
     scrapedAt: new Date().toISOString()
   };
 }
