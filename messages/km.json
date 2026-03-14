@@ -1,0 +1,47 @@
+{
+  "common": {
+    "appName": "[KM] NavigateAI",
+    "continue": "[KM] Continue",
+    "back": "[KM] Back",
+    "yes": "[KM] Yes",
+    "no": "[KM] No",
+    "saving": "[KM] Saving..."
+  },
+  "language": {
+    "title": "[KM] Welcome to NavigateAI",
+    "subtitle": "[KM] Choose your preferred language",
+    "detected": "[KM] Detected browser language: {locale}",
+    "spanish": "Español",
+    "khmer": "ខ្មែរ",
+    "english": "English"
+  },
+  "onboard": {
+    "title": "[KM] Let's build your business profile",
+    "subtitle": "[KM] Answer a few quick questions",
+    "progress": "[KM] Step {current} of {total}",
+    "businessType": "[KM] What best describes your business type?",
+    "zipCode": "[KM] What is your ZIP code?",
+    "years": "[KM] How many years have you been in business?",
+    "employees": "[KM] How many employees do you have?",
+    "revenue": "[KM] Which revenue range best matches your business?",
+    "artist": "[KM] Are you an artist or creative?",
+    "done": "[KM] Profile saved. You're ready to explore opportunities.",
+    "chips": {
+      "retail": "[KM] Retail",
+      "restaurant": "[KM] Restaurant/Food",
+      "services": "[KM] Services",
+      "construction": "[KM] Construction",
+      "health": "[KM] Health/Wellness",
+      "creative": "[KM] Creative/Arts",
+      "technology": "[KM] Technology",
+      "other": "[KM] Other"
+    },
+    "revenueBuckets": {
+      "r1": "[KM] Under $50k",
+      "r2": "[KM] $50k–$100k",
+      "r3": "[KM] $100k–$250k",
+      "r4": "[KM] $250k–$500k",
+      "r5": "[KM] $500k+"
+    }
+  }
+}

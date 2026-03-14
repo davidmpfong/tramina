@@ -1,0 +1,47 @@
+{
+  "common": {
+    "appName": "NavigateAI",
+    "continue": "Continue",
+    "back": "Back",
+    "yes": "Yes",
+    "no": "No",
+    "saving": "Saving..."
+  },
+  "language": {
+    "title": "Welcome to NavigateAI",
+    "subtitle": "Choose your preferred language",
+    "detected": "Detected browser language: {locale}",
+    "spanish": "Español",
+    "khmer": "ខ្មែរ",
+    "english": "English"
+  },
+  "onboard": {
+    "title": "Let's build your business profile",
+    "subtitle": "Answer a few quick questions",
+    "progress": "Step {current} of {total}",
+    "businessType": "What best describes your business type?",
+    "zipCode": "What is your ZIP code?",
+    "years": "How many years have you been in business?",
+    "employees": "How many employees do you have?",
+    "revenue": "Which revenue range best matches your business?",
+    "artist": "Are you an artist or creative?",
+    "done": "Profile saved. You're ready to explore opportunities.",
+    "chips": {
+      "retail": "Retail",
+      "restaurant": "Restaurant/Food",
+      "services": "Services",
+      "construction": "Construction",
+      "health": "Health/Wellness",
+      "creative": "Creative/Arts",
+      "technology": "Technology",
+      "other": "Other"
+    },
+    "revenueBuckets": {
+      "r1": "Under $50k",
+      "r2": "$50k–$100k",
+      "r3": "$100k–$250k",
+      "r4": "$250k–$500k",
+      "r5": "$500k+"
+    }
+  }
+}
