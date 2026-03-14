@@ -87,8 +87,16 @@ export async function grantExtractionAgent(input: GrantExtractionInput): Promise
     const cleanedText = text.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
     const parsed = JSON.parse(cleanedText) as ExtractedGrantData;
 
+    const normalizeType = (raw: unknown): "grant" | "loan" | "benefit" => {
+      const s = String(raw ?? "").toLowerCase();
+      if (s.includes("loan")) return "loan";
+      if (s.includes("benefit")) return "benefit";
+      return "grant";
+    };
+
     const extractedData: ExtractedGrantData = {
       ...parsed,
+      type: normalizeType(parsed.type),
       rawContent: parsed.rawContent?.trim() ? parsed.rawContent : input.rawContent
     };
 
