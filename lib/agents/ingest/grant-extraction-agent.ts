@@ -11,7 +11,7 @@ function buildSafePartialExtractedData(rawContent: string): ExtractedGrantData {
   const fallbackName = extractFallbackField(rawContent, "grant name|name") ?? "Unknown";
   const fallbackFunder = extractFallbackField(rawContent, "funder|funding organization|organization") ?? "Unknown";
   const fallbackDescription =
-    extractFallbackField(rawContent, "description|summary") ?? rawContent.slice(0, 500).trim() || "Unknown";
+    (extractFallbackField(rawContent, "description|summary") ?? rawContent.slice(0, 500).trim()) || "Unknown";
 
   return {
     name: fallbackName,
