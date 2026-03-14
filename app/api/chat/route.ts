@@ -37,9 +37,9 @@ const chatRequestSchema = z.object({
   userId: z.string().uuid(),
   currentStepIndex: z.number().int().min(0).optional().default(0),
   collectedFields: z.array(collectedFieldSchema).optional(),
-  workflowSteps: z.array(workflowStepSchema).optional()
+  workflowSteps: z.array(workflowStepSchema).optional(),
+  initialContext: z.string().optional()
 });
-
 const WELCOME_BY_LOCALE: Record<"en" | "es" | "km", string> = {
   en: "Hello! I’m your assistant for finding grants and funding for your business. Let me find the best opportunities for you.",
   es: "¡Hola! Soy tu asistente para encontrar subvenciones y fondos para tu negocio. Déjame encontrar las mejores oportunidades para ti.",
@@ -138,12 +138,12 @@ export async function POST(req: NextRequest) {
           selectedOpportunityId,
           workflowSteps = [],
           currentStepIndex = 0,
-          collectedFields = []
+          collectedFields = [],
+          initialContext
         } = parsed.data;
-
         if (phase === "greeting") {
-          sendChunk({ type: "text", content: WELCOME_BY_LOCALE[locale] });
-
+          const welcomeMsg = WELCOME_BY_LOCALE[locale] + (initialContext ? ` ${initialContext}` : "");
+          sendChunk({ type: "text", content: welcomeMsg });
           const profileResult = supabaseServerService
             ? await supabaseServerService
                 .from("business_profiles")

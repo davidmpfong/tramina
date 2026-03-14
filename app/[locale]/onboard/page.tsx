@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabaseBrowser } from "@/lib/supabase/client";
+
 type OnboardState = {
   industry: string;
   zip_code: string;
@@ -96,9 +97,13 @@ export default function OnboardPage() {
     setIsSaving(false);
 
     if (response.ok) {
-      router.push(`/${locale}`);
+      const ctx = encodeURIComponent(
+        `El usuario tiene un negocio de tipo ${form.industry} con ${form.years_in_business} años de operación y ${form.employee_count} empleados.`
+      );
+      router.push(`/${locale}/chat?ctx=${ctx}`);
     }
   }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center px-4 py-10">
       <h1 className="text-3xl font-semibold">{t("title")}</h1>

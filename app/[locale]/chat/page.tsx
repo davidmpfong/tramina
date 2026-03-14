@@ -2,12 +2,12 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import type {
   ChatMessage,
   ChatPhase,
-  ChatRequestBody,
   ChatResponseChunk,
   CollectedField,
   MatchedOpportunity,
@@ -41,6 +41,8 @@ function formatAmount(min: number | null, max: number | null) {
 export default function ChatPage() {
   const t = useTranslations("chat");
   const locale = useLocale() as SupportedLocale;
+  const searchParams = useSearchParams();
+  const initialContext = searchParams.get("ctx") ?? undefined;
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -97,14 +99,11 @@ export default function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, phase, isLoading, messages.length]);
 
-  async function sendMessage(
-    rawText: string,
-    isSystemKickoff = false,
-    selectedOpportunityOverride?: string
-  ) {
+  async function sendMessage(rawText: string, isSystemKickoff = false, selectedOpportunityOverride?: string) {
     if (!userId || isLoading) {
       return;
     }
+
     const text = rawText.trim();
     if (!isSystemKickoff && !text) {
       return;
@@ -151,7 +150,7 @@ export default function ChatPage() {
       data: { session }
     } = await supabaseBrowser.auth.getSession();
 
-    const payload: ChatRequestBody = {
+    const payload = {
       messages: nextMessages,
       phase,
       locale,
@@ -159,8 +158,10 @@ export default function ChatPage() {
       selectedOpportunityId: selectedOpportunityOverride ?? selectedOpportunityId ?? undefined,
       workflowSteps,
       currentStepIndex: nextStepIndex,
-      collectedFields: nextCollectedFields
+      collectedFields: nextCollectedFields,
+      initialContext: phase === "greeting" ? initialContext : undefined
     };
+
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: {
@@ -255,14 +256,6 @@ export default function ChatPage() {
           if (chunk.phase === "collection" && nextStepIndex === 0) {
             shouldKickoffCollection = true;
           }
-
-          if (chunk.phase === "review") {
-            pendingAssistantMessageId = null;
-          }
-
-          if (chunk.phase === "done") {
-            pendingAssistantMessageId = null;
-          }
         }
 
         if (chunk.type === "done") {
@@ -287,6 +280,7 @@ export default function ChatPage() {
     setSelectedOpportunityId(opportunityId);
     void sendMessage(opportunityName, false, opportunityId);
   }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col bg-amber-50/40 px-4 py-6">
       <header className="mb-4 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
