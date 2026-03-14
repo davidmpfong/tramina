@@ -76,7 +76,10 @@ function AuthContent() {
 
     const { error: otpError } = await supabaseBrowser.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true }
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectPath)}`
+      }
     });
 
     setIsMagicLoading(false);
