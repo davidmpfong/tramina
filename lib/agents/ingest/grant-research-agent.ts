@@ -7,7 +7,7 @@ import { GrantResearchInput, GrantResearchOutput, ResearchError } from "@/lib/in
 export async function grantResearchAgent(input: GrantResearchInput): Promise<GrantResearchOutput> {
   const model = new ChatGoogleGenerativeAI({
     apiKey: process.env.GOOGLE_API_KEY,
-    model: "gemini-1.5-flash"
+    model: "gemini-2.0-flash"
   });
 
   const response = await model.invoke(
