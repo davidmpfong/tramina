@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,14 @@ export default function OnboardPage() {
     revenue_range: "",
     is_artist: null
   });
+
+  useEffect(() => {
+    supabaseBrowser.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.push(`/${locale}/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+      }
+    });
+  }, [locale, router]);
 
   const totalSteps = 6;
   const progress = ((step + 1) / totalSteps) * 100;

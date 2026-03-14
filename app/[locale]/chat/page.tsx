@@ -2,7 +2,7 @@
 
 import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import type {
@@ -41,6 +41,7 @@ function formatAmount(min: number | null, max: number | null) {
 function ChatContent() {
   const t = useTranslations("chat");
   const locale = useLocale() as SupportedLocale;
+  const router = useRouter();
   const searchParams = useSearchParams();
   const initialContext = searchParams.get("ctx") ?? undefined;
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -80,7 +81,12 @@ function ChatContent() {
         return;
       }
 
-      setUserId(session?.user?.id ?? null);
+      if (!session) {
+        router.push(`/${locale}/auth?redirect=${encodeURIComponent(window.location.pathname)}`);
+        return;
+      }
+
+      setUserId(session.user.id);
     }
 
     init();
@@ -88,7 +94,7 @@ function ChatContent() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [locale, router]);
 
   useEffect(() => {
     if (!userId || isLoading || messages.length > 0 || phase !== "greeting") {
