@@ -27,10 +27,13 @@ function isProtectedPath(pathname: string): boolean {
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (!isProtectedPath(pathname)) {
+  if (pathname.includes("/auth/callback")) {
     return intlMiddleware(request);
   }
 
+  if (!isProtectedPath(pathname)) {
+    return intlMiddleware(request);
+  }
   // Properly validate the Supabase session using @supabase/ssr
   const response = NextResponse.next();
 

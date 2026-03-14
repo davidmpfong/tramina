@@ -78,7 +78,7 @@ function AuthContent() {
       email,
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: `${window.location.origin}/${locale}/auth/callback?next=${encodeURIComponent(redirectPath)}`
+        emailRedirectTo: `${window.location.origin}/${locale}/auth/callback?next=${encodeURIComponent(redirectPath)}&locale=${locale}`
       }
     });
 
