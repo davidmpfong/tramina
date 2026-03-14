@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -38,7 +38,7 @@ function formatAmount(min: number | null, max: number | null) {
   return `Up to ${formatter.format(max ?? 0)}`;
 }
 
-export default function ChatPage() {
+function ChatContent() {
   const t = useTranslations("chat");
   const locale = useLocale() as SupportedLocale;
   const searchParams = useSearchParams();
@@ -364,5 +364,19 @@ export default function ChatPage() {
         </button>
       </form>
     </main>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center bg-amber-50/40">
+          <div className="text-amber-900">Cargando...</div>
+        </main>
+      }
+    >
+      <ChatContent />
+    </Suspense>
   );
 }
