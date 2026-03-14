@@ -43,7 +43,7 @@ function buildSafePartialExtractedData(rawContent: string): ExtractedGrantData {
 export async function grantExtractionAgent(input: GrantExtractionInput): Promise<GrantExtractionOutput> {
   const model = new ChatGoogleGenerativeAI({
     apiKey: process.env.GOOGLE_API_KEY,
-    model: "gemini-2.0-flash-lite"
+    model: "gemini-1.5-flash-latest"
   });
 
   const warnings: string[] = [];
