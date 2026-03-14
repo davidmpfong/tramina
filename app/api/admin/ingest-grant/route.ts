@@ -258,8 +258,7 @@ export async function POST(req: NextRequest) {
 
         const errorName = error instanceof Error ? error.name : "UnknownError";
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        const failedStageName = failedStage ?? "researching";
-
+        const failedStageName: IngestStageName = failedStage ?? "researching";
         const errorData: Record<string, unknown> = {
           failedStage: failedStageName,
           errorName,
