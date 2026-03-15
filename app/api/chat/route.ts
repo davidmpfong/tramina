@@ -166,13 +166,12 @@ export async function POST(req: NextRequest) {
           selectedOpportunityId,
           workflowSteps = [],
           currentStepIndex = 0,
-          collectedFields = [],
-          initialContext
+          collectedFields = []
         } = parsed.data;
+
         if (phase === "greeting") {
-          const safeCtx = initialContext ? sanitizeForPrompt(initialContext, 300) : null;
-          const welcomeMsg = WELCOME_BY_LOCALE[locale] + (safeCtx ? ` ${safeCtx}` : "");
-          sendChunk({ type: "text", content: welcomeMsg });
+          sendChunk({ type: "text", content: WELCOME_BY_LOCALE[locale] });
+
           const profileResult = supabaseServerService
             ? await supabaseServerService
                 .from("business_profiles")
@@ -180,7 +179,6 @@ export async function POST(req: NextRequest) {
                 .eq("user_id", userId)
                 .maybeSingle()
             : { data: null };
-
           const profile = profileResult.data;
 
           const retrieved = await opportunityRetrievalAgent({
@@ -246,6 +244,24 @@ export async function POST(req: NextRequest) {
           const userMessage = getLastUserMessage(messages);
           const safeUserMessage = sanitizeForPrompt(userMessage);
 
+          // If client already provided a selected opportunity ID, skip intent detection
+          if (selectedOpportunityId) {
+            const workflowRows = supabaseServerService
+              ? await supabaseServerService
+                  .from("workflow_definitions")
+                  .select("steps")
+                  .eq("opportunity_id", selectedOpportunityId)
+                  .order("version", { ascending: false })
+                  .limit(1)
+              : { data: null };
+
+            const dbSteps = (workflowRows.data?.[0]?.steps as WorkflowStep[] | undefined) ?? [];
+            sendChunk({ type: "workflow", workflowSteps: dbSteps });
+            sendChunk({ type: "phase_change", phase: "collection" });
+            sendChunk({ type: "done" });
+            return;
+          }
+
           if (!userMessage) {
             sendChunk({
               type: "text",
@@ -254,10 +270,10 @@ export async function POST(req: NextRequest) {
             sendChunk({ type: "done" });
             return;
           }
+
           const decisionPrompt = `Return strict JSON with this shape: {"intent":"selected"|"question","selectedOpportunityId":string|null}.\nThe user's language is ${LANGUAGE_NAME_BY_LOCALE[locale]}.\nUser message: ${safeUserMessage}\nKnown selectedOpportunityId (if any): ${selectedOpportunityId ?? "none"}`;
           const decisionRaw = await model.invoke(decisionPrompt);
           const decisionText = decisionRaw.content?.toString() ?? "";
-
           let intent: "selected" | "question" = "question";
           let selectedId: string | null = selectedOpportunityId ?? null;
 
