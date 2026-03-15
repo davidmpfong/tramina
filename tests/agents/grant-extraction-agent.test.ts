@@ -109,6 +109,6 @@ describe("grantExtractionAgent", () => {
     const { grantExtractionAgent } = await import("@/lib/agents/ingest/grant-extraction-agent");
     const result = await grantExtractionAgent({ rawContent: "Raw content" });
     expect(result.isPartial).toBe(true);
-    expect(result.warnings).toContain(expect.stringMatching(/Missing required/));
+    expect(result.warnings.some((warning) => /Missing required/.test(warning))).toBe(true);
   });
 });
