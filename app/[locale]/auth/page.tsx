@@ -19,6 +19,7 @@ function AuthContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMagicLoading, setIsMagicLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   const redirectPath = useMemo(() => {
@@ -34,6 +35,7 @@ function AuthContent() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     setMagicLinkSent(false);
 
     if (!email) {
@@ -57,6 +59,16 @@ function AuthContent() {
 
     if (authError) {
       setError(authError.message || t("error"));
+      return;
+    }
+
+    const {
+      data: { session }
+    } = await supabaseBrowser.auth.getSession();
+
+    if (!session) {
+      // signUp succeeded but email confirmation is required
+      setSuccessMessage("Account created! Please check your email to confirm your account, then sign in.");
       return;
     }
 
@@ -142,6 +154,9 @@ function AuthContent() {
           </div>
 
           {error && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+          {successMessage && (
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{successMessage}</p>
+          )}
           {magicLinkSent && (
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{t("magicLinkSent")}</p>
           )}
