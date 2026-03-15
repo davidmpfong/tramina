@@ -58,6 +58,8 @@ function ChatContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [draftContent, setDraftContent] = useState<string>("");
+  const [isDraftLoading, setIsDraftLoading] = useState(false);
   const progressValue = useMemo(() => {
     if (workflowSteps.length === 0) {
       return 0;
@@ -327,6 +329,103 @@ function ChatContent() {
     void sendMessage("confirmed");
   }
 
+  async function handleGenerateDraft() {
+    if (!userId || !selectedOpportunityId || isDraftLoading) {
+      return;
+    }
+
+    setIsDraftLoading(true);
+    setDraftContent("");
+
+    try {
+      const {
+        data: { session }
+      } = await supabaseBrowser.auth.getSession();
+
+      const response = await fetch("/api/draft-application", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({
+          opportunityId: selectedOpportunityId,
+          collectedFields,
+          locale,
+          userId
+        })
+      });
+
+      if (!response.ok || !response.body) {
+        const errorText = await response.text().catch(() => "Failed to generate draft.");
+        setDraftContent(errorText || "Failed to generate draft.");
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+
+        for (const part of parts) {
+          const line = part
+            .split("\n")
+            .find((entry) => entry.startsWith("data: "));
+
+          if (!line) {
+            continue;
+          }
+
+          const data = line.replace("data: ", "").trim();
+          if (!data) {
+            continue;
+          }
+
+          let chunk: { type: "text" | "done"; content?: string };
+
+          try {
+            chunk = JSON.parse(data) as { type: "text" | "done"; content?: string };
+          } catch {
+            continue;
+          }
+
+          if (chunk.type === "text" && chunk.content) {
+            setDraftContent((prev) => `${prev}${chunk.content ?? ""}`);
+          }
+
+          if (chunk.type === "done") {
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      setDraftContent(error instanceof Error ? error.message : "Failed to generate draft.");
+    } finally {
+      setIsDraftLoading(false);
+    }
+  }
+
+  async function handleCopyDraft() {
+    if (!draftContent) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(draftContent);
+    } catch {
+      // no-op
+    }
+  }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col bg-amber-50/40 px-4 py-6">
       <header className="mb-4 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
@@ -394,7 +493,36 @@ function ChatContent() {
       </section>
 
       {/* document_extract step */}
-      {phase === "collection" && activeStep?.stepType === "document_extract" ? (
+      {phase === "done" ? (
+        <div className="mt-4 space-y-3 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
+          <button
+            type="button"
+            onClick={handleGenerateDraft}
+            disabled={isDraftLoading || !selectedOpportunityId}
+            className="rounded-xl bg-amber-900 px-4 py-2 text-sm font-medium text-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isDraftLoading ? "Generating draft..." : "Generate Application Draft"}
+          </button>
+
+          {draftContent && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-amber-900">Application Draft</p>
+                <button
+                  type="button"
+                  onClick={handleCopyDraft}
+                  className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                >
+                  Copy to clipboard
+                </button>
+              </div>
+              <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xl border border-amber-100 bg-amber-50/50 p-4 text-sm text-amber-950">
+                {draftContent}
+              </pre>
+            </div>
+          )}
+        </div>
+      ) : phase === "collection" && activeStep?.stepType === "document_extract" ? (
         <div className="mt-4 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm space-y-3">
           <p className="text-sm font-medium text-amber-900">
             {activeStep.inputPrompt ?? "Please upload or photograph the required document."}
@@ -456,12 +584,12 @@ function ChatContent() {
             onChange={(event) => setInput(event.target.value)}
             placeholder={t("placeholder")}
             className="flex-1 rounded-xl border border-amber-100 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring"
-            disabled={isLoading || phase === "done"}
+            disabled={isLoading}
           />
           <button
             type="submit"
             className="rounded-xl bg-amber-900 px-4 py-2 text-sm font-medium text-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isLoading || phase === "done"}
+            disabled={isLoading}
           >
             {isLoading ? t("thinking") : t("send")}
           </button>
