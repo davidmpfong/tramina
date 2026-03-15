@@ -13,7 +13,6 @@ type OnboardState = {
   years_in_business: string;
   employee_count: string;
   revenue_range: "under_50k" | "50k_100k" | "100k_250k" | "250k_500k" | "500k_plus" | "";
-  is_artist: boolean | null;
 };
 
 const businessTypes = ["retail", "restaurant", "services", "construction", "health", "creative", "technology", "other"] as const;
@@ -38,8 +37,7 @@ export default function OnboardPage() {
     zip_code: "",
     years_in_business: "",
     employee_count: "",
-    revenue_range: "",
-    is_artist: null
+    revenue_range: ""
   });
 
   useEffect(() => {
@@ -50,7 +48,7 @@ export default function OnboardPage() {
     });
   }, [locale, router]);
 
-  const totalSteps = 6;
+  const totalSteps = 5;
   const progress = ((step + 1) / totalSteps) * 100;
 
   const canContinue = useMemo(() => {
@@ -65,8 +63,6 @@ export default function OnboardPage() {
         return Boolean(form.employee_count);
       case 4:
         return Boolean(form.revenue_range);
-      case 5:
-        return form.is_artist !== null;
       default:
         return false;
     }
@@ -97,7 +93,7 @@ export default function OnboardPage() {
         years_in_business: Number(form.years_in_business),
         employee_count: Number(form.employee_count),
         revenue_range: form.revenue_range,
-        is_artist: Boolean(form.is_artist),
+        is_artist: form.industry === "creative",
         locale
       })
     });
@@ -201,25 +197,7 @@ export default function OnboardPage() {
           </>
         )}
 
-        {step === 5 && (
-          <>
-            <p className="text-lg font-medium">{t("artist")}</p>
-            <div className="mt-4 flex gap-3">
-              <Button
-                variant={form.is_artist === true ? "default" : "outline"}
-                onClick={() => setForm((prev) => ({ ...prev, is_artist: true }))}
-              >
-                {tc("yes")}
-              </Button>
-              <Button
-                variant={form.is_artist === false ? "default" : "outline"}
-                onClick={() => setForm((prev) => ({ ...prev, is_artist: false }))}
-              >
-                {tc("no")}
-              </Button>
-            </div>
-          </>
-        )}
+
       </section>
 
       <div className="mt-6 flex justify-between">
