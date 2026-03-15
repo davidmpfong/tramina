@@ -12,7 +12,7 @@ const HuntGrantsRequestSchema = z.object({
   audience: z.string().min(1).max(500).default("immigrant-owned small businesses in Massachusetts"),
   geography: z.string().min(1).max(200).default("Lynn, Massachusetts"),
   industries: z.array(z.string()).max(10).optional(),
-  maxCandidates: z.number().int().min(1).max(20).optional().default(10)
+  maxCandidates: z.number().int().min(1).max(50).optional().default(10)
 });
 
 export async function POST(req: NextRequest) {
