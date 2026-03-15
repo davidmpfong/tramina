@@ -56,23 +56,58 @@ export async function ingestionWriterAgent(input: IngestionWriterInput): Promise
     throw new IngestionWriteError(opportunityError?.message ?? "Failed to upsert opportunity");
   }
 
-  const { data: workflowData, error: workflowError } = await supabaseServerService
-    .from("workflow_definitions")
-    .insert({
-      opportunity_id: opportunityData.id,
-      version: 1,
-      steps: input.workflowSteps,
-      locale: input.locale
-    })
-    .select("id")
-    .single();
+  let workflowDefinitionId: string;
 
-  if (workflowError || !workflowData?.id) {
-    throw new IngestionWriteError(workflowError?.message ?? "Failed to insert workflow definition");
+  const { data: existingWorkflow, error: existingWorkflowError } = await supabaseServerService
+    .from("workflow_definitions")
+    .select("id, version")
+    .eq("opportunity_id", opportunityData.id)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingWorkflowError) {
+    throw new IngestionWriteError(existingWorkflowError.message);
+  }
+
+  if (existingWorkflow) {
+    const { data: updatedWorkflow, error: updateWorkflowError } = await supabaseServerService
+      .from("workflow_definitions")
+      .update({
+        steps: input.workflowSteps,
+        locale: input.locale,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", existingWorkflow.id)
+      .select("id")
+      .single();
+
+    if (updateWorkflowError || !updatedWorkflow?.id) {
+      throw new IngestionWriteError(updateWorkflowError?.message ?? "Failed to update workflow definition");
+    }
+
+    workflowDefinitionId = updatedWorkflow.id;
+  } else {
+    const { data: insertedWorkflow, error: insertWorkflowError } = await supabaseServerService
+      .from("workflow_definitions")
+      .insert({
+        opportunity_id: opportunityData.id,
+        version: 1,
+        steps: input.workflowSteps,
+        locale: input.locale
+      })
+      .select("id")
+      .single();
+
+    if (insertWorkflowError || !insertedWorkflow?.id) {
+      throw new IngestionWriteError(insertWorkflowError?.message ?? "Failed to insert workflow definition");
+    }
+
+    workflowDefinitionId = insertedWorkflow.id;
   }
 
   return {
     opportunityId: opportunityData.id,
-    workflowDefinitionId: workflowData.id
+    workflowDefinitionId
   };
 }
