@@ -48,6 +48,23 @@ const WELCOME_BY_LOCALE: Record<"en" | "es" | "km", string> = {
   km: "សួស្តី! ខ្ញុំជាជំនួយការរបស់អ្នកសម្រាប់ស្វែងរកជំនួយឥតសំណង និងថវិកាសម្រាប់អាជីវកម្មរបស់អ្នក។"
 };
 
+const SELECT_PROMPT: Record<"en" | "es" | "km", string> = {
+  en: "You can select an opportunity by name, or ask me questions so I can help you decide.",
+  es: "Puedes seleccionar una oportunidad por nombre o hacerme preguntas para ayudarte a decidir.",
+  km: "អ្នកអាចជ្រើសឱកាសតាមឈ្មោះ ឬសួរខ្ញុំសំណួរដើម្បីជួយសម្រេចចិត្ត។"
+};
+
+const NO_STEPS: Record<"en" | "es" | "km", string> = {
+  en: "I could not find application steps for this opportunity. Let's move to review.",
+  es: "No encontré pasos de solicitud para esta oportunidad. Pasemos al resumen.",
+  km: "ខ្ញុំមិនបានរកឃើញជំហានដាក់ពាក្យសម្រាប់ឱកាសនេះទេ។ យើងទៅសង្ខេប។"
+};
+
+const LANGUAGE_NAME_BY_LOCALE: Record<"en" | "es" | "km", string> = {
+  en: "English",
+  es: "Spanish",
+  km: "Khmer (Cambodian)"
+};
 function toDeadlineText(deadline: string | null, locale: "en" | "es" | "km") {
   if (!deadline) {
     return null;
@@ -232,19 +249,12 @@ export async function POST(req: NextRequest) {
           if (!userMessage) {
             sendChunk({
               type: "text",
-              content:
-                locale === "es"
-                  ? "Puedes seleccionar una oportunidad por nombre o hacerme preguntas para ayudarte a decidir."
-                  : locale === "km"
-                    ? "អ្នកអាចជ្រើសឱកាសតាមឈ្មោះ ឬសួរខ្ញុំសំណួរដើម្បីជួយសម្រេចចិត្ត។"
-                    : "You can select an opportunity by name, or ask me questions so I can help you decide."
+              content: SELECT_PROMPT[locale]
             });
             sendChunk({ type: "done" });
             return;
           }
-
-          const decisionPrompt = `Return strict JSON with this shape: {"intent":"selected"|"question","selectedOpportunityId":string|null}.\nUser message: ${safeUserMessage}\nKnown selectedOpportunityId (if any): ${selectedOpportunityId ?? "none"}`;
-
+          const decisionPrompt = `Return strict JSON with this shape: {"intent":"selected"|"question","selectedOpportunityId":string|null}.\nThe user's language is ${LANGUAGE_NAME_BY_LOCALE[locale]}.\nUser message: ${safeUserMessage}\nKnown selectedOpportunityId (if any): ${selectedOpportunityId ?? "none"}`;
           const decisionRaw = await model.invoke(decisionPrompt);
           const decisionText = decisionRaw.content?.toString() ?? "";
 
@@ -283,7 +293,7 @@ export async function POST(req: NextRequest) {
             return;
           }
 
-          const answerPrompt = `You are a helpful grants advisor. Reply in locale ${locale}. Keep responses practical and warm.\nUser question: ${safeUserMessage}`;
+          const answerPrompt = `You are a helpful grants advisor. You MUST reply ONLY in ${LANGUAGE_NAME_BY_LOCALE[locale]}. Do not use any other language. Keep responses practical and warm.\nUser question: ${safeUserMessage}`;
           await streamModelText(model, answerPrompt, (text) => sendChunk({ type: "text", content: text }));
           sendChunk({ type: "phase_change", phase: "matching" });
           sendChunk({ type: "done" });
@@ -292,22 +302,15 @@ export async function POST(req: NextRequest) {
 
         if (phase === "collection") {
           const totalSteps = workflowSteps.length;
-
           if (totalSteps === 0) {
             sendChunk({
               type: "text",
-              content:
-                locale === "es"
-                  ? "No encontré pasos de solicitud para esta oportunidad. Pasemos al resumen."
-                  : locale === "km"
-                    ? "ខ្ញុំមិនបានរកឃើញជំហានដាក់ពាក្យសម្រាប់ឱកាសនេះទេ។ យើងទៅសង្ខេប។"
-                    : "I could not find application steps for this opportunity. Let’s move to review."
+              content: NO_STEPS[locale]
             });
             sendChunk({ type: "phase_change", phase: "review" });
             sendChunk({ type: "done" });
             return;
           }
-
           const userMessage = getLastUserMessage(messages);
           let nextCollected = [...collectedFields];
           let nextIndex = currentStepIndex;
@@ -337,8 +340,7 @@ export async function POST(req: NextRequest) {
           const step = workflowSteps[nextIndex];
           sendChunk({ type: "workflow", workflowSteps });
 
-          const stepPrompt = `You are guiding an immigrant entrepreneur through a grant application. Reply in ${locale}. Ask one clear question for this step, and keep it supportive.\nStep title: ${step.title}\nStep description: ${step.description}\nPreferred input prompt: ${step.inputPrompt ?? ""}\nProgress: ${nextIndex + 1}/${totalSteps}`;
-
+          const stepPrompt = `You are guiding an immigrant entrepreneur through a grant application. You MUST reply ONLY in ${LANGUAGE_NAME_BY_LOCALE[locale]}. Do not use any other language. Ask one clear question for this step, and keep it supportive.\nStep title: ${step.title}\nStep description: ${step.description}\nPreferred input prompt: ${step.inputPrompt ?? ""}\nProgress: ${nextIndex + 1}/${totalSteps}`;
           await streamModelText(model, stepPrompt, (text) => sendChunk({ type: "text", content: text }));
           sendChunk({ type: "done" });
           return;
@@ -349,8 +351,7 @@ export async function POST(req: NextRequest) {
             .map((field) => `- ${field.stepTitle}: ${field.answer}`)
             .join("\n");
 
-          const reviewPrompt = `Summarize this grant application information in ${locale}. Keep it concise and friendly.\n${summaryInput || "No answers collected yet."}`;
-
+          const reviewPrompt = `Summarize this grant application information. You MUST write ONLY in ${LANGUAGE_NAME_BY_LOCALE[locale]}. Do not use any other language. Keep it concise and friendly.\n${summaryInput || "No answers collected yet."}`;
           await streamModelText(model, reviewPrompt, (text) => sendChunk({ type: "text", content: text }));
           sendChunk({ type: "phase_change", phase: "done" });
           sendChunk({ type: "done" });
