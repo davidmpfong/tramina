@@ -33,8 +33,8 @@ export const WorkflowStepSchema = z.object({
 });
 
 export const ExtractedGrantDataSchema = z.object({
-  name: z.string().min(1),
-  funder: z.string().min(1),
+  name: z.string().nullish().transform((v) => v ?? "Unknown"),
+  funder: z.string().nullish().transform((v) => v ?? "Unknown"),
   type: OpportunityTypeSchema,
   description: z.string().min(1),
   amountMin: z.number().nullable(),
@@ -44,7 +44,10 @@ export const ExtractedGrantDataSchema = z.object({
   applicationWindowEnd: z.string().nullable(),
   awardType: z.string().nullable(),
   eligibilityRules: z.record(z.unknown()),
-  geographicScope: z.string().nullable(),
+  geographicScope: z
+    .union([z.string(), z.array(z.string())])
+    .nullable()
+    .transform((v) => (Array.isArray(v) ? v.join(", ") : (v ?? null))),
   languagesAvailable: z.array(z.string()),
   matchingTags: z.array(z.string()),
   sourceUrl: z.string().url().nullable(),
