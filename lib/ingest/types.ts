@@ -21,7 +21,7 @@ export interface IngestRunEvent {
 
 export interface IngestRunReport {
   ingestRunId: string;
-  status: "success" | "partial_success" | "failed";
+  status: "success" | "partial_success" | "failed" | "rejected";
   startedAt: string;
   endedAt: string;
   stageDurationsMs: Record<IngestStageName, number>;
@@ -29,7 +29,6 @@ export interface IngestRunReport {
   warnings: string[];
   sourceUrlsUsed: string[];
 }
-
 export interface IngestGrantResult {
   opportunity: OpportunityRowExtended;
   workflowDefinition: WorkflowDefinitionRow;
@@ -153,6 +152,7 @@ export interface SchemaValidatorOutput {
   valid: boolean;
   errors: string[];
   warnings: string[];
+  rejectionReasons: string[];  // quality gate failures — distinct from schema errors
 }
 
 export interface IngestionWriterInput {

@@ -60,6 +60,15 @@ export async function grantExtractionAgent(input: GrantExtractionInput): Promise
         "",
         "ExtractedGrantData fields:",
         "name, funder, type, description, amountMin, amountMax, deadline, applicationWindowStart, applicationWindowEnd, awardType, eligibilityRules, geographicScope, languagesAvailable, matchingTags, sourceUrl, rawContent, applicationUrl, contactEmail, requiredDocuments",
+        "CRITICAL FIELDS — extract these with maximum accuracy:",
+        "- applicationUrl: The direct URL where applicants submit the application. Must be a full URL starting with https://. Set null ONLY if genuinely not findable.",
+        "- deadline: ISO date string (YYYY-MM-DD) of the application deadline. If rolling/ongoing, set to null and note in deadlineText.",
+        "- deadlineText: Human-readable deadline description (e.g., 'Rolling basis', 'December 31, 2026', 'Applications closed').",
+        "- applicationWindowStart: ISO date when the application window opens, or null.",
+        "- applicationWindowEnd: ISO date when the application window closes, or null.",
+        "- eligibilityRules: A detailed JSON object with keys like: industries (array), ownershipFlags (array of 'immigrant-owned'|'minority-owned'|'woman-owned'|'artist'), minYearsInBusiness (number|null), maxEmployees (number|null), revenueRanges (array), geographicRestrictions (array), otherRequirements (array of strings).",
+        "- requiredDocuments: Array of every document applicants must submit.",
+        "- contactEmail: Contact email for the program, or null.",
         "",
         `Raw content:\n${input.rawContent}`
       ].join("\n")
@@ -112,6 +121,21 @@ export async function grantExtractionAgent(input: GrantExtractionInput): Promise
 
     if (missingRequired.length > 0) {
       warnings.push(`Missing required extracted fields: ${missingRequired.join(", ")}`);
+    }
+
+    // Quality gate warnings
+    if (!extractedData.applicationUrl) {
+      warnings.push("QUALITY: applicationUrl is missing — grant may not have an online application");
+    }
+
+    const eligibilityRulesEmpty = !extractedData.eligibilityRules ||
+      Object.keys(extractedData.eligibilityRules).length === 0;
+    if (eligibilityRulesEmpty) {
+      warnings.push("QUALITY: eligibilityRules is empty — eligibility criteria not extracted");
+    }
+
+    if (!extractedData.requiredDocuments || extractedData.requiredDocuments.length === 0) {
+      warnings.push("QUALITY: requiredDocuments is empty — required documents not extracted");
     }
 
     return {

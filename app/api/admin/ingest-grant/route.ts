@@ -11,17 +11,15 @@ import { supabaseServerService } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-type IngestStatus = "success" | "partial_success" | "failed";
-
+type IngestStatus = "success" | "partial_success" | "failed" | "rejected";
 type StreamEvent = {
   ingestRunId: string;
-  stage: IngestStageName | "done" | "error";
+  stage: IngestStageName | "done" | "error" | "rejected";
   status: "started" | "succeeded" | "failed";
   message: string;
   timestamp: string;
   data?: Record<string, unknown>;
 };
-
 export async function POST(req: NextRequest) {
   if (!supabaseServerService) {
     return new Response(JSON.stringify({ error: "Service role key not configured" }), {
@@ -214,12 +212,42 @@ export async function POST(req: NextRequest) {
             result,
             data: {
               valid: result.valid,
-              warnings: result.warnings
+              warnings: result.warnings,
+              rejectionReasons: result.rejectionReasons
             },
             message: "Schema validation passed",
             warnings: result.warnings
           };
         });
+
+        // Quality gate: if validator found rejection reasons, reject the grant
+        if (validation.rejectionReasons && validation.rejectionReasons.length > 0) {
+          finalStatus = "rejected";
+          emitEvent("rejected", {
+            ingestRunId,
+            stage: "rejected",
+            status: "failed",
+            message: "Grant rejected — quality gates not met",
+            timestamp: new Date().toISOString(),
+            data: {
+              rejectionReasons: validation.rejectionReasons
+            }
+          });
+          // Update ingest_runs and exit — do NOT write to opportunities
+          await supabaseServerService
+            ?.from("ingest_runs")
+            .update({
+              status: "rejected",
+              ended_at: new Date().toISOString(),
+              stage_durations_ms: stageDurations,
+              events: stageEvents,
+              warnings: allWarnings,
+              sources_used: sourceUrlsUsed
+            })
+            .eq("id", ingestRunId);
+          controller.close();
+          return;
+        }
 
         const writing = await runStage("writing", "Database write started", async () => {
           const result = await ingestionWriterAgent({
@@ -228,7 +256,6 @@ export async function POST(req: NextRequest) {
             ingestRunId,
             locale
           });
-
           opportunityId = result.opportunityId;
 
           return {
@@ -282,6 +309,9 @@ export async function POST(req: NextRequest) {
           data: errorData
         });
       } finally {
+        // Skip if already handled (e.g., rejected)
+        if (finalStatus === "rejected") return;
+
         await supabaseServerService
           ?.from("ingest_runs")
           .update({
@@ -298,7 +328,6 @@ export async function POST(req: NextRequest) {
       }
     }
   });
-
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
