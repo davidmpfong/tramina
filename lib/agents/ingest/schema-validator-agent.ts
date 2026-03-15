@@ -10,8 +10,21 @@ export async function schemaValidatorAgent(input: SchemaValidatorInput): Promise
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  const workflowStepTypeSchema = z.enum([
+    "info_collection",
+    "document_upload",
+    "document_extract",
+    "narrative_draft",
+    "review",
+    "submission"
+  ]);
+
+  const workflowStepSchema = WorkflowStepSchema.extend({
+    stepType: workflowStepTypeSchema
+  });
+
   const extractedResult = ExtractedGrantDataSchema.safeParse(input.extractedData);
-  const workflowResult = z.array(WorkflowStepSchema).safeParse(input.workflowSteps);
+  const workflowResult = z.array(workflowStepSchema).safeParse(input.workflowSteps);
 
   if (!extractedResult.success) {
     errors.push(
