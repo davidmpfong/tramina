@@ -141,8 +141,9 @@ export interface WorkflowBuilderInput {
 
 export interface WorkflowBuilderOutput {
   steps: WorkflowStep[];
+  estimatedMinutes: number;
+  applicationOverview: string;
 }
-
 export interface SchemaValidatorInput {
   extractedData: ExtractedGrantData;
   workflowSteps: WorkflowStep[];
@@ -160,8 +161,9 @@ export interface IngestionWriterInput {
   workflowSteps: WorkflowStep[];
   ingestRunId: string;
   locale: IngestLocale;
+  estimatedMinutes?: number;
+  applicationOverview?: string;
 }
-
 export interface IngestionWriterOutput {
   opportunityId: string;
   workflowDefinitionId: string;

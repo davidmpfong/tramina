@@ -407,12 +407,36 @@ export async function POST(req: NextRequest) {
 
             const dbSteps = (workflowRows.data?.[0]?.steps as WorkflowStep[] | undefined) ?? [];
             const localizedSteps = await localizeSteps(dbSteps, locale);
+
+            // Fetch expectation data
+            let estimatedMinutes: number | null = null;
+            let applicationOverview: string | null = null;
+            if (supabaseServerService && selectedOpportunityId) {
+              const { data: oppData } = await supabaseServerService
+                .from("opportunities")
+                .select("wizard_estimated_minutes, application_overview, required_documents")
+                .eq("id", selectedOpportunityId)
+                .maybeSingle();
+              estimatedMinutes = oppData?.wizard_estimated_minutes ?? null;
+              applicationOverview = oppData?.application_overview ?? null;
+            }
+
             sendChunk({ type: "workflow", workflowSteps: localizedSteps });
+            sendChunk({
+              type: "expectation",
+              estimatedMinutes: estimatedMinutes ?? undefined,
+              applicationOverview: applicationOverview ?? undefined,
+              totalSteps: localizedSteps.filter((s) =>
+                s.stepType === "info_collection" ||
+                s.stepType === "document_upload" ||
+                s.stepType === "document_extract" ||
+                s.stepType === "narrative_draft"
+              ).length
+            } as ChatResponseChunk);
             sendChunk({ type: "phase_change", phase: "collection" });
             sendChunk({ type: "done" });
             return;
           }
-
           if (!userMessage) {
             sendChunk({
               type: "text",
@@ -455,12 +479,36 @@ export async function POST(req: NextRequest) {
 
             const dbSteps = (workflowRows.data?.[0]?.steps as WorkflowStep[] | undefined) ?? [];
             const localizedSteps = await localizeSteps(dbSteps, locale);
+
+            // Fetch expectation data
+            let estimatedMinutes: number | null = null;
+            let applicationOverview: string | null = null;
+            if (supabaseServerService && selectedId) {
+              const { data: oppData } = await supabaseServerService
+                .from("opportunities")
+                .select("wizard_estimated_minutes, application_overview, required_documents")
+                .eq("id", selectedId)
+                .maybeSingle();
+              estimatedMinutes = oppData?.wizard_estimated_minutes ?? null;
+              applicationOverview = oppData?.application_overview ?? null;
+            }
+
             sendChunk({ type: "workflow", workflowSteps: localizedSteps });
+            sendChunk({
+              type: "expectation",
+              estimatedMinutes: estimatedMinutes ?? undefined,
+              applicationOverview: applicationOverview ?? undefined,
+              totalSteps: localizedSteps.filter((s) =>
+                s.stepType === "info_collection" ||
+                s.stepType === "document_upload" ||
+                s.stepType === "document_extract" ||
+                s.stepType === "narrative_draft"
+              ).length
+            } as ChatResponseChunk);
             sendChunk({ type: "phase_change", phase: "collection" });
             sendChunk({ type: "done" });
             return;
           }
-
           const answerPrompt = `You are a helpful grants advisor. You MUST reply ONLY in ${LANGUAGE_NAME_BY_LOCALE[locale]}. Do not use any other language. Keep responses practical and warm.\nUser question: ${safeUserMessage}`;
           await streamModelText(model, answerPrompt, (text) => sendChunk({ type: "text", content: text }));
           sendChunk({ type: "phase_change", phase: "matching" });
@@ -469,7 +517,15 @@ export async function POST(req: NextRequest) {
         }
 
         if (phase === "collection") {
-          const totalSteps = workflowSteps.length;
+          // Filter to only actionable collection steps
+          const actionableSteps = workflowSteps.filter((s) =>
+            s.stepType === "info_collection" ||
+            s.stepType === "document_upload" ||
+            s.stepType === "document_extract" ||
+            s.stepType === "narrative_draft"
+          );
+
+          const totalSteps = actionableSteps.length;
           if (totalSteps === 0) {
             sendChunk({
               type: "text",
@@ -484,7 +540,7 @@ export async function POST(req: NextRequest) {
           let nextIndex = currentStepIndex;
 
           if (userMessage && currentStepIndex < totalSteps) {
-            const currentStep = workflowSteps[currentStepIndex];
+            const currentStep = actionableSteps[currentStepIndex];
             const alreadyCollected = collectedFields.some((field) => field.stepId === currentStep.id);
 
             if (!alreadyCollected) {
@@ -505,7 +561,7 @@ export async function POST(req: NextRequest) {
             return;
           }
 
-          const step = workflowSteps[nextIndex];
+          const step = actionableSteps[nextIndex];
           sendChunk({ type: "workflow", workflowSteps });
 
           const stepPrompt = `You are guiding an immigrant entrepreneur through a grant application. You MUST reply ONLY in ${LANGUAGE_NAME_BY_LOCALE[locale]}. Do not use any other language. Ask one clear question for this step, and keep it supportive.\nStep title: ${step.title}\nStep description: ${step.description}\nPreferred input prompt: ${step.inputPrompt ?? ""}\nProgress: ${nextIndex + 1}/${totalSteps}`;
@@ -513,7 +569,6 @@ export async function POST(req: NextRequest) {
           sendChunk({ type: "done" });
           return;
         }
-
         if (phase === "review") {
           const summaryInput = (parsed.data.collectedFields ?? [])
             .map((field) => `- ${field.stepTitle}: ${field.answer}`)

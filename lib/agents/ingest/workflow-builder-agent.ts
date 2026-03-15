@@ -63,7 +63,40 @@ export async function workflowBuilderAgent(input: WorkflowBuilderInput): Promise
     throw new WorkflowBuildError("Failed to generate valid workflow steps");
   }
 
+  // Generate expectation overview
+  const overviewResponse = await model.invoke([
+    "You are helping a small business owner understand what to expect before starting a grant application.",
+    "Based on these workflow steps, generate:",
+    "1. An estimated time to complete (in minutes) — count only info_collection, document_upload, document_extract, and narrative_draft steps. Info_collection = 5 min each, document_upload = 10 min, document_extract = 3 min, narrative_draft = 20 min.",
+    "2. A plain-language overview (2-3 sentences) describing what the applicant will need to do and gather.",
+    "",
+    "Return JSON with exactly these fields:",
+    '{ "estimatedMinutes": number, "applicationOverview": string }',
+    "No markdown fences.",
+    "",
+    `Workflow steps: ${JSON.stringify((parsed as WorkflowStep[]).map((s) => ({ stepType: s.stepType, title: s.title, requiredDocuments: s.requiredDocuments })) )}`
+  ].join("\n"));
+
+  const overviewText = typeof overviewResponse.content === "string"
+    ? overviewResponse.content
+    : Array.isArray(overviewResponse.content)
+      ? overviewResponse.content.map((b) => typeof b === "string" ? b : ("text" in b ? (b as { text: string }).text : "")).join("")
+      : "";
+
+  let estimatedMinutes = 30;
+  let applicationOverview = "This application requires some information about your business and supporting documents.";
+  try {
+    const clean = overviewText.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
+    const ov = JSON.parse(clean) as { estimatedMinutes?: number; applicationOverview?: string };
+    if (typeof ov.estimatedMinutes === "number") estimatedMinutes = ov.estimatedMinutes;
+    if (typeof ov.applicationOverview === "string") applicationOverview = ov.applicationOverview;
+  } catch {
+    // use defaults
+  }
+
   return {
-    steps: parsed as WorkflowStep[]
+    steps: parsed as WorkflowStep[],
+    estimatedMinutes,
+    applicationOverview
   };
 }

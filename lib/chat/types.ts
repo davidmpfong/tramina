@@ -71,9 +71,12 @@ export interface ChatRequestBody {
 }
 
 export interface ChatResponseChunk {
-  type: "text" | "phase_change" | "opportunities" | "workflow" | "done";
+  type: "text" | "phase_change" | "opportunities" | "workflow" | "expectation" | "done";
   content?: string;
   phase?: ChatPhase;
   opportunities?: MatchedOpportunity[];
   workflowSteps?: WorkflowStep[];
+  estimatedMinutes?: number;
+  applicationOverview?: string;
+  totalSteps?: number;
 }

@@ -42,6 +42,8 @@ export async function ingestionWriterAgent(input: IngestionWriterInput): Promise
         application_window_end: input.extractedData.applicationWindowEnd,
         award_type: input.extractedData.awardType,
         matching_tags: input.extractedData.matchingTags,
+        wizard_estimated_minutes: input.estimatedMinutes ?? null,
+        application_overview: input.applicationOverview ?? null,
         is_active: true
       },
       {

@@ -254,7 +254,9 @@ export async function POST(req: NextRequest) {
             extractedData: extraction.extractedData,
             workflowSteps: workflow.steps,
             ingestRunId,
-            locale
+            locale,
+            estimatedMinutes: workflow.estimatedMinutes,
+            applicationOverview: workflow.applicationOverview
           });
           opportunityId = result.opportunityId;
 
