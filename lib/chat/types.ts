@@ -1,11 +1,11 @@
 export type ChatPhase =
   | "greeting"
+  | "screening"
   | "matching"
   | "selection"
   | "collection"
   | "review"
   | "done";
-
 export interface ChatMessage {
   id: string;
   role: "assistant" | "user";

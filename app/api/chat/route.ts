@@ -7,9 +7,62 @@ import { eligibilityRankingAgent } from "@/lib/agents/eligibility-ranking-agent"
 import { checkRateLimit } from "@/lib/rateLimit";
 import { sanitizeForPrompt } from "@/lib/sanitize";
 import { localizeSteps } from "@/lib/chat/localize";
-import type { ChatResponseChunk, CollectedField, WorkflowStep } from "@/lib/chat/types";
-export const runtime = "nodejs";
+import type { ChatPhase, ChatResponseChunk, CollectedField, WorkflowStep } from "@/lib/chat/types";
 
+async function localizeOpportunities(
+  opportunities: {
+    id: string;
+    name: string;
+    funder: string;
+    type: string;
+    description: string;
+    amount_min: number | null;
+    amount_max: number | null;
+    deadline: string | null;
+    deadline_text: string | null;
+    score: number;
+  }[],
+  locale: "en" | "es" | "km"
+) {
+  if (locale === "en" || opportunities.length === 0) return opportunities;
+
+  const model = new ChatGoogleGenerativeAI({
+    apiKey: process.env.GOOGLE_API_KEY,
+    model: "gemini-2.5-flash-lite"
+  });
+
+  const toTranslate = opportunities.map((o) => ({ id: o.id, name: o.name, funder: o.funder, description: o.description }));
+  const LANGUAGE_NAME: Record<"en" | "es" | "km", string> = { en: "English", es: "Spanish", km: "Khmer (Cambodian)" };
+
+  const prompt = [
+    `Translate the following JSON array of grant opportunity text fields into ${LANGUAGE_NAME[locale]}.`,
+    "Translate only the values of: name, funder, description. Keep id unchanged.",
+    "Return ONLY a valid JSON array with the same structure. No markdown fences.",
+    "",
+    JSON.stringify(toTranslate)
+  ].join("\n");
+
+  const response = await model.invoke(prompt);
+  const text = typeof response.content === "string"
+    ? response.content
+    : Array.isArray(response.content)
+      ? response.content.map((b) => (typeof b === "string" ? b : ("text" in b ? b.text : ""))).join("")
+      : "";
+
+  try {
+    const translated = JSON.parse(text) as { id: string; name: string; funder: string; description: string }[];
+    const byId = new Map(translated.map((t) => [t.id, t]));
+    return opportunities.map((o) => {
+      const t = byId.get(o.id);
+      if (!t) return o;
+      return { ...o, name: t.name, funder: t.funder, description: t.description };
+    });
+  } catch {
+    return opportunities;
+  }
+}
+
+export const runtime = "nodejs";
 const messageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string().min(1)
@@ -34,7 +87,7 @@ const collectedFieldSchema = z.object({
 
 const chatRequestSchema = z.object({
   messages: z.array(messageSchema),
-  phase: z.enum(["greeting", "matching", "selection", "collection", "review", "done"]),
+  phase: z.enum(["greeting", "screening", "matching", "selection", "collection", "review", "done"]),
   locale: z.enum(["en", "es", "km"]),
   selectedOpportunityId: z.string().uuid().optional(),
   userId: z.string().uuid(),
@@ -182,6 +235,28 @@ export async function POST(req: NextRequest) {
             : { data: null };
           const profile = profileResult.data;
 
+          // Pre-screening: if profile is missing key fields, ask inline
+          const missingIndustry = !profile?.industry;
+          const missingZip = !profile?.zip_code;
+
+          if (missingIndustry || missingZip) {
+            const screeningQ = missingIndustry
+              ? (locale === "es"
+                  ? "Para encontrar las mejores oportunidades, ¿cuál es el tipo de negocio o industria?"
+                  : locale === "km"
+                    ? "ដើម្បីស្វែងរកឱកាសល្អបំផុត តើអាជីវកម្មរបស់អ្នកជាប្រភេទអ្វី?"
+                    : "To find the best opportunities, what type of business or industry are you in?")
+              : (locale === "es"
+                  ? "¿Cuál es el código postal de tu negocio?"
+                  : locale === "km"
+                    ? "លេខកូដប្រៃសណីយ៍អាជីវកម្មរបស់អ្នកជាអ្វី?"
+                    : "What is your business zip code?");
+            sendChunk({ type: "text", content: screeningQ });
+            sendChunk({ type: "phase_change", phase: "screening" as ChatPhase });
+            sendChunk({ type: "done" });
+            return;
+          }
+
           const retrieved = await opportunityRetrievalAgent({
             userId,
             zipCode: profile?.zip_code ?? undefined
@@ -235,7 +310,81 @@ export async function POST(req: NextRequest) {
             };
           });
 
-          sendChunk({ type: "opportunities", opportunities });
+          const localizedOpportunities = await localizeOpportunities(opportunities, locale);
+          sendChunk({ type: "opportunities", opportunities: localizedOpportunities });
+          sendChunk({ type: "phase_change", phase: "matching" });
+          sendChunk({ type: "done" });
+          return;
+        }
+
+        if (phase === "screening") {
+          const userMessage = getLastUserMessage(messages);
+          if (userMessage && supabaseServerService) {
+            const safeMsg = sanitizeForPrompt(userMessage, 200);
+            // Determine what was collected: if it looks like a zip (5 digits), save as zip_code; otherwise treat as industry
+            const isZip = /^\d{5}$/.test(safeMsg.trim());
+            const updatePayload = isZip
+              ? { zip_code: safeMsg.trim() }
+              : { industry: safeMsg.trim().toLowerCase() };
+            await supabaseServerService
+              .from("business_profiles")
+              .update(updatePayload)
+              .eq("user_id", userId);
+          }
+          // Kick back to greeting to show grants now
+          sendChunk({ type: "text", content: WELCOME_BY_LOCALE[locale] });
+          // Re-run opportunity retrieval with updated profile
+          const updatedProfile = supabaseServerService
+            ? await supabaseServerService
+                .from("business_profiles")
+                .select("industry,is_artist,years_in_business,zip_code")
+                .eq("user_id", userId)
+                .maybeSingle()
+            : { data: null };
+
+          const profile2 = updatedProfile.data;
+          const retrieved2 = await opportunityRetrievalAgent({ userId, zipCode: profile2?.zip_code ?? undefined });
+          const ranked2 = await eligibilityRankingAgent({
+            opportunities: retrieved2.opportunities,
+            userProfile: {
+              industry: profile2?.industry ?? undefined,
+              is_artist: profile2?.is_artist ?? undefined,
+              years_in_business: profile2?.years_in_business ?? undefined
+            }
+          });
+          const topRanked2 = ranked2.ranked.slice(0, 3);
+          const ids2 = topRanked2.map((i) => i.id);
+          let detailsById2 = new Map<string, { funder: string; description: string; deadline_text: string | null }>();
+          if (supabaseServerService && ids2.length > 0) {
+            const { data: detailedRows2 } = await supabaseServerService
+              .from("opportunities")
+              .select("id,funder,description,deadline")
+              .in("id", ids2);
+            detailsById2 = new Map(
+              (detailedRows2 ?? []).map((row) => [row.id, {
+                funder: row.funder ?? "",
+                description: row.description ?? "",
+                deadline_text: toDeadlineText(row.deadline ?? null, locale)
+              }])
+            );
+          }
+          const opportunities2 = topRanked2.map((item) => {
+            const details = detailsById2.get(item.id);
+            return {
+              id: item.id,
+              name: item.name,
+              funder: details?.funder ?? "",
+              type: item.type,
+              description: details?.description ?? "",
+              amount_min: item.amount_min,
+              amount_max: item.amount_max,
+              deadline: item.deadline,
+              deadline_text: details?.deadline_text ?? toDeadlineText(item.deadline, locale),
+              score: item.score
+            };
+          });
+          const localizedOpportunities2 = await localizeOpportunities(opportunities2, locale);
+          sendChunk({ type: "opportunities", opportunities: localizedOpportunities2 });
           sendChunk({ type: "phase_change", phase: "matching" });
           sendChunk({ type: "done" });
           return;
@@ -372,6 +521,16 @@ export async function POST(req: NextRequest) {
 
           const reviewPrompt = `Summarize this grant application information. You MUST write ONLY in ${LANGUAGE_NAME_BY_LOCALE[locale]}. Do not use any other language. Keep it concise and friendly.\n${summaryInput || "No answers collected yet."}`;
           await streamModelText(model, reviewPrompt, (text) => sendChunk({ type: "text", content: text }));
+          sendChunk({
+            type: "text",
+            content:
+              "\n\n" +
+              (locale === "es"
+                ? "Cuando estés listo, puedes generar un borrador de solicitud completo."
+                : locale === "km"
+                  ? "រួចហើយ អ្នកអាចបង្កើតសេចក្តីព្រាងពាក្យសុំពេញលេញ។"
+                  : "When you're ready, you can generate a complete application draft.")
+          });
           sendChunk({ type: "phase_change", phase: "done" });
           sendChunk({ type: "done" });
           return;
