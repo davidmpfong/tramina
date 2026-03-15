@@ -60,6 +60,17 @@ function ChatContent() {
   const [extractError, setExtractError] = useState<string | null>(null);
   const [draftContent, setDraftContent] = useState<string>("");
   const [isDraftLoading, setIsDraftLoading] = useState(false);
+  const [expectation, setExpectation] = useState<{
+    estimatedMinutes?: number;
+    applicationOverview?: string;
+    totalSteps?: number;
+  } | null>(null);
+  const [showExpectation, setShowExpectation] = useState(false);
+  const expectationRef = useRef<{
+    estimatedMinutes?: number;
+    applicationOverview?: string;
+    totalSteps?: number;
+  } | null>(null);
   const progressValue = useMemo(() => {
     if (workflowSteps.length === 0) {
       return 0;
@@ -67,7 +78,6 @@ function ChatContent() {
 
     return Math.min(100, (currentStepIndex / workflowSteps.length) * 100);
   }, [currentStepIndex, workflowSteps.length]);
-
   const activeStep = phase === "collection" ? workflowSteps[currentStepIndex] ?? null : null;
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -259,6 +269,20 @@ function ChatContent() {
           }
         }
 
+        if (chunk.type === "expectation") {
+          const nextExpectation = {
+            estimatedMinutes: (chunk as { estimatedMinutes?: number; applicationOverview?: string; totalSteps?: number })
+              .estimatedMinutes,
+            applicationOverview: (chunk as { estimatedMinutes?: number; applicationOverview?: string; totalSteps?: number })
+              .applicationOverview,
+            totalSteps: (chunk as { estimatedMinutes?: number; applicationOverview?: string; totalSteps?: number })
+              .totalSteps
+          };
+          setExpectation(nextExpectation);
+          expectationRef.current = nextExpectation;
+          setShowExpectation(true);
+        }
+
         if (chunk.type === "phase_change" && chunk.phase) {
           setPhase(chunk.phase);
           pendingAssistantMessageId = null;
@@ -267,7 +291,6 @@ function ChatContent() {
             shouldKickoffCollection = true;
           }
         }
-
         if (chunk.type === "done") {
           pendingAssistantMessageId = null;
         }
@@ -276,11 +299,10 @@ function ChatContent() {
 
     setIsLoading(false);
 
-    if (shouldKickoffCollection) {
+    if (shouldKickoffCollection && !expectationRef.current) {
       void sendMessage("", true);
     }
   }
-
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void sendMessage(input);
@@ -492,9 +514,47 @@ function ChatContent() {
         </div>
       </section>
 
+      {showExpectation && phase === "collection" && currentStepIndex === 0 && expectation && (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm space-y-3">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">📋</span>
+            <div>
+              <p className="font-semibold text-amber-950">Before we start</p>
+              {expectation.applicationOverview && (
+                <p className="mt-1 text-sm text-amber-800">{expectation.applicationOverview}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4 text-sm text-amber-700">
+            {expectation.estimatedMinutes && (
+              <span className="flex items-center gap-1.5">
+                <span>⏱</span>
+                <span>About {expectation.estimatedMinutes} minutes to complete</span>
+              </span>
+            )}
+            {expectation.totalSteps !== undefined && (
+              <span className="flex items-center gap-1.5">
+                <span>📝</span>
+                <span>{expectation.totalSteps} questions</span>
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowExpectation(false);
+              void sendMessage("", true);
+            }}
+            disabled={isLoading}
+            className="rounded-xl bg-amber-900 px-5 py-2 text-sm font-medium text-amber-50 disabled:opacity-60"
+          >
+            Let's begin →
+          </button>
+        </div>
+      )}
+
       {/* document_extract step */}
-      {phase === "done" ? (
-        <div className="mt-4 space-y-3 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
+      {phase === "done" ? (        <div className="mt-4 space-y-3 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
           <button
             type="button"
             onClick={handleGenerateDraft}
