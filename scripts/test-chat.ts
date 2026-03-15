@@ -66,6 +66,8 @@ type SupabasePasswordAuthResponse = {
   error_description?: string;
 };
 
+export {};
+
 const BASE_URL = process.env.BASE_URL ?? "https://tramina.vercel.app";
 const BYPASS_TOKEN = process.env.BYPASS_TOKEN ?? "Ebf916hL4CtthHhWr1tYHyoSRz6rNMLl";
 const SUPABASE_URL = process.env.SUPABASE_URL;
