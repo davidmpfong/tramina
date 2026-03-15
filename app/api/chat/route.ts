@@ -6,6 +6,7 @@ import { opportunityRetrievalAgent } from "@/lib/agents/opportunity-retrieval-ag
 import { eligibilityRankingAgent } from "@/lib/agents/eligibility-ranking-agent";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { sanitizeForPrompt } from "@/lib/sanitize";
+import { localizeSteps } from "@/lib/chat/localize";
 import type { ChatResponseChunk, CollectedField, WorkflowStep } from "@/lib/chat/types";
 export const runtime = "nodejs";
 
@@ -256,7 +257,8 @@ export async function POST(req: NextRequest) {
               : { data: null };
 
             const dbSteps = (workflowRows.data?.[0]?.steps as WorkflowStep[] | undefined) ?? [];
-            sendChunk({ type: "workflow", workflowSteps: dbSteps });
+            const localizedSteps = await localizeSteps(dbSteps, locale);
+            sendChunk({ type: "workflow", workflowSteps: localizedSteps });
             sendChunk({ type: "phase_change", phase: "collection" });
             sendChunk({ type: "done" });
             return;
@@ -303,7 +305,8 @@ export async function POST(req: NextRequest) {
               : { data: null };
 
             const dbSteps = (workflowRows.data?.[0]?.steps as WorkflowStep[] | undefined) ?? [];
-            sendChunk({ type: "workflow", workflowSteps: dbSteps });
+            const localizedSteps = await localizeSteps(dbSteps, locale);
+            sendChunk({ type: "workflow", workflowSteps: localizedSteps });
             sendChunk({ type: "phase_change", phase: "collection" });
             sendChunk({ type: "done" });
             return;

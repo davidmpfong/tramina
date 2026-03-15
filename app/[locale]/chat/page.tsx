@@ -56,7 +56,8 @@ function ChatContent() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [collectedFields, setCollectedFields] = useState<CollectedField[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
   const progressValue = useMemo(() => {
     if (workflowSteps.length === 0) {
       return 0;
@@ -65,6 +66,7 @@ function ChatContent() {
     return Math.min(100, (currentStepIndex / workflowSteps.length) * 100);
   }, [currentStepIndex, workflowSteps.length]);
 
+  const activeStep = phase === "collection" ? workflowSteps[currentStepIndex] ?? null : null;
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
@@ -287,6 +289,44 @@ function ChatContent() {
     void sendMessage(opportunityName, false, opportunityId);
   }
 
+  async function handleDocumentExtract(file: File) {
+    if (!activeStep?.extractFields || !userId) return;
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      const {
+        data: { session }
+      } = await supabaseBrowser.auth.getSession();
+      const fd = new FormData();
+      fd.append("image", file);
+      fd.append("fields", JSON.stringify(activeStep.extractFields));
+      fd.append("documentType", activeStep.requiredDocuments?.[0] ?? "document");
+      const res = await fetch("/api/extract-document", {
+        method: "POST",
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        body: fd
+      });
+      const json = (await res.json()) as { extracted?: Record<string, string | null>; error?: string };
+      if (!res.ok || !json.extracted) {
+        setExtractError(json.error ?? "Extraction failed");
+        return;
+      }
+      const answer = Object.entries(json.extracted)
+        .filter(([, v]) => v !== null)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+      await sendMessage(answer || "No fields extracted");
+    } catch (err) {
+      setExtractError(err instanceof Error ? err.message : "Extraction failed");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  function handleDocumentUploadConfirm() {
+    void sendMessage("confirmed");
+  }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col bg-amber-50/40 px-4 py-6">
       <header className="mb-4 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
@@ -353,22 +393,80 @@ function ChatContent() {
         </div>
       </section>
 
-      <form onSubmit={handleSubmit} className="mt-4 flex gap-2 rounded-2xl border border-amber-100 bg-white p-3 shadow-sm">
-        <input
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder={t("placeholder")}
-          className="flex-1 rounded-xl border border-amber-100 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring"
-          disabled={isLoading || phase === "done"}
-        />
-        <button
-          type="submit"
-          className="rounded-xl bg-amber-900 px-4 py-2 text-sm font-medium text-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isLoading || phase === "done"}
+      {/* document_extract step */}
+      {phase === "collection" && activeStep?.stepType === "document_extract" ? (
+        <div className="mt-4 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm space-y-3">
+          <p className="text-sm font-medium text-amber-900">
+            {activeStep.inputPrompt ?? "Please upload or photograph the required document."}
+          </p>
+          {activeStep.requiredDocuments && activeStep.requiredDocuments.length > 0 && (
+            <p className="text-xs text-amber-700">Document needed: {activeStep.requiredDocuments.join(", ")}</p>
+          )}
+          <label className="flex items-center gap-2 cursor-pointer rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 hover:bg-amber-100 transition">
+            <span className="text-amber-900 text-sm font-medium">
+              {extracting ? "Extracting..." : "📷 Upload or take photo"}
+            </span>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              capture="environment"
+              className="hidden"
+              disabled={extracting || isLoading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleDocumentExtract(file);
+              }}
+            />
+          </label>
+          {extractError && <p className="text-xs text-red-600">{extractError}</p>}
+        </div>
+      ) : phase === "collection" && activeStep?.stepType === "document_upload" ? (
+        /* document_upload step: checklist acknowledgment */
+        <div className="mt-4 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm space-y-3">
+          <p className="text-sm font-medium text-amber-900">
+            {activeStep.inputPrompt ?? "Please gather the following documents to submit with your application:"}
+          </p>
+          {activeStep.requiredDocuments && activeStep.requiredDocuments.length > 0 && (
+            <ul className="space-y-2">
+              {activeStep.requiredDocuments.map((doc) => (
+                <li key={doc} className="flex items-center gap-2 text-sm text-amber-800">
+                  <span className="text-amber-500">☐</span>
+                  {doc}
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            onClick={handleDocumentUploadConfirm}
+            disabled={isLoading}
+            className="rounded-xl bg-amber-900 px-4 py-2 text-sm font-medium text-amber-50 disabled:opacity-60"
+          >
+            I have these documents ready
+          </button>
+        </div>
+      ) : (
+        /* Default: text input for info_collection, narrative_draft, review, submission, matching */
+        <form
+          onSubmit={handleSubmit}
+          className="mt-4 flex gap-2 rounded-2xl border border-amber-100 bg-white p-3 shadow-sm"
         >
-          {isLoading ? t("thinking") : t("send")}
-        </button>
-      </form>
+          <input
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder={t("placeholder")}
+            className="flex-1 rounded-xl border border-amber-100 px-3 py-2 text-sm outline-none ring-amber-300 focus:ring"
+            disabled={isLoading || phase === "done"}
+          />
+          <button
+            type="submit"
+            className="rounded-xl bg-amber-900 px-4 py-2 text-sm font-medium text-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isLoading || phase === "done"}
+          >
+            {isLoading ? t("thinking") : t("send")}
+          </button>
+        </form>
+      )}
     </main>
   );
 }

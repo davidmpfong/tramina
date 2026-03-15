@@ -38,7 +38,7 @@ export interface IngestGrantResult {
 
 // Opportunity / Workflow
 export type OpportunityType = "grant" | "loan" | "benefit";
-export type WorkflowStepType = "info_collection" | "document_upload" | "narrative_draft" | "review" | "submission";
+export type WorkflowStepType = "info_collection" | "document_upload" | "document_extract" | "narrative_draft" | "review" | "submission";
 
 export interface WorkflowStep {
   id: string;
@@ -47,11 +47,11 @@ export interface WorkflowStep {
   title: string;
   description: string;
   requiredDocuments?: string[];
+  extractFields?: string[]; // for document_extract steps: list of field names to extract e.g. ["registration_number", "ein"]
   inputPrompt?: string;
   validationRules?: string[];
   isOptional: boolean;
 }
-
 // Extraction
 export interface ExtractedGrantData {
   name: string;

@@ -52,8 +52,13 @@ export interface WorkflowStep {
   description: string;
   inputPrompt?: string;
   isOptional: boolean;
+  extractFields?: string[];
+  requiredDocuments?: string[];
 }
 
+export interface ExtractedDocumentFields {
+  [fieldName: string]: string;
+}
 export interface ChatRequestBody {
   messages: ChatMessage[];
   phase: ChatPhase;
