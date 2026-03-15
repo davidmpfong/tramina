@@ -9,8 +9,8 @@
 import { describe, it, expect, beforeAll } from "vitest";
 
 const isE2E = process.env.TEST_E2E === "true";
-const BASE_URL = process.env.BASE_URL ?? "https://tramina.vercel.app";
-const BYPASS_TOKEN = process.env.BYPASS_TOKEN ?? "Ebf916hL4CtthHhWr1tYHyoSRz6rNMLl";
+const BASE_URL = process.env.BASE_URL || "https://tramina.vercel.app";
+const BYPASS_TOKEN = process.env.BYPASS_TOKEN || "Ebf916hL4CtthHhWr1tYHyoSRz6rNMLl";
 
 type ChatChunk = {
   type: string;
